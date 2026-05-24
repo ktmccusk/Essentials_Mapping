@@ -21,6 +21,8 @@ import sys
 from pathlib import Path
 
 import anthropic
+from dotenv import load_dotenv
+load_dotenv()  # loads ANTHROPIC_API_KEY from .env if present
 
 import config
 
