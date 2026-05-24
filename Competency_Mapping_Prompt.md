@@ -4,7 +4,7 @@
 
 ## YOUR TASK
 
-You are assisting with graduate nursing curriculum development for a combined Adult-Gerontology Acute Care Nurse Practitioner (AG-ACNP) and Adult-Gerontology Clinical Nurse Specialist (AG-CNS) program. Your task is to review the attached course syllabus and complete the competency alignment table by mapping each learning outcome to its corresponding AACN Essentials (2021) Level 2 sub-competencies and NONPF Nurse Practitioner Role Competencies (2022/2024).
+You are assisting with graduate nursing curriculum development for a combined Adult-Gerontology Acute Care Nurse Practitioner (AG-ACNP) and Adult-Gerontology Clinical Nurse Specialist (AG-CNS) program. Your task is to review the attached course syllabus and complete the competency alignment table by mapping each learning outcome to its corresponding AACN Essentials (2026) Level 2 sub-competencies and NONPF Nurse Practitioner Role Competencies (2022/2024).
 
 ---
 
