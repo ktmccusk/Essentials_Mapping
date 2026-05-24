@@ -1,11 +1,118 @@
-# Essentials_Mapping
-Prompt-based method of initial mapping for an Acute Care specialty program using learning outcomes, AACN Essentials, and NONPF Role Competencies. 
+# DNP Curricular Mapping Tool
 
-This prompt (Skill) was created for the Claude AI agent Sonnet 4.6. 
+Automates mapping of DNP course syllabi (.docx) to AACN Essentials 2026 and NONPF competencies,
+populating the DNP Curricular Mapping Template Excel file.
 
-To use this skill effectively, please upload the following documents to the chat or project: AACN Essentials, NONPF Role Competencies, and syllabi, or other documents with learning outcomes. 
+---
 
-The prompt was created around Seattle University's College of Nursing's syllabus template. If this prompt were to be reused, it would be important to ensure that the prompt is adjusted for the template being used. 
+## Prerequisites
 
-#BE AWARE!!
-This prompt does an excellent job of mapping to learning outcomes and competencies that have similar language. However, it is not able to infer competencies that are not clearly outlined in the language. For example, within the clinical practicum, students are practicing ethical decision-making in their practice of holistic care, as well as medications, etc. However, while these map to ethics, the AI agent will not "see" that connection clearly. 
+- Python 3.10+
+- An [Anthropic API key](https://console.anthropic.com/)
+- Your .docx syllabus files
+- The updated DNP mapping template Excel file
+
+## Setup
+
+```bash
+# 1. Install dependencies
+pip install -r requirements.txt
+
+# 2. Set your API key (do this once per terminal session)
+# Mac/Linux:
+export ANTHROPIC_API_KEY=your-key-here
+
+# Windows (Command Prompt):
+set ANTHROPIC_API_KEY=your-key-here
+
+# Windows (PowerShell):
+$env:ANTHROPIC_API_KEY="your-key-here"
+```
+
+## Directory Layout
+
+```
+your-project/
+├── syllabi/                          ← Put your .docx files here
+├── DNP_Curricular_Mapping_Template_2026_UPDATED.xlsx
+├── cache/                            ← Created automatically (extracted text + JSON)
+├── dnp_mapper/                       ← This tool
+│   ├── run_all.py
+│   ├── extract.py
+│   ├── map.py
+│   ├── report.py
+│   ├── write.py
+│   ├── config.py
+│   ├── skill_prompt.txt
+│   └── utils/
+└── DNP_Mapping_Output.xlsx           ← Created automatically
+```
+
+## Running the Full Pipeline
+
+From inside the `dnp_mapper/` directory:
+
+```bash
+python run_all.py
+```
+
+This runs all four steps in sequence.
+
+## Running Individual Steps
+
+```bash
+# Step 1 only: extract relevant sections from syllabi
+python extract.py
+
+# Step 2 only: call the API and generate JSON mappings
+python map.py
+
+# Step 3 only: generate the audit report
+python report.py
+
+# Step 4 only: write mappings into the Excel template
+python write.py
+```
+
+## Resuming After a Crash
+
+The tool caches each course's JSON after a successful API call.
+If the pipeline crashes mid-run, simply run again — already-mapped courses are skipped.
+
+To **re-process everything** from scratch:
+```bash
+python run_all.py --force
+```
+
+To **resume from a specific step**:
+```bash
+python run_all.py --skip-to report   # skips extract and map, runs report + write
+python run_all.py --skip-to write    # runs write only
+```
+
+## Outputs
+
+| File | Description |
+|------|-------------|
+| `cache/*.txt` | Extracted sections from each syllabus |
+| `cache/*.json` | AI-generated mapping for each course |
+| `DNP_Mapping_Output.xlsx` | Populated mapping template |
+| `DNP_Mapping_Report.md` | Audit report — review before finalizing |
+
+## Reviewing the Output
+
+**Before accepting the Excel output as final:**
+
+1. Open `DNP_Mapping_Report.md` in any Markdown viewer (VS Code, Typora, GitHub)
+2. Review all **⚑ Flagged entries** — these are mappings the AI was uncertain about (shown in amber in the Excel)
+3. Review any **Unmapped CLOs** — course objectives that couldn't be matched
+4. Spot-check a few courses against the source syllabi
+
+## Configuring Paths
+
+Edit `config.py` to change default directories, model name, or extraction behavior.
+
+## Cost Estimate
+
+Each syllabus call uses approximately 6,000–10,000 tokens (input + output).
+At claude-sonnet-4 pricing, 70 syllabi ≈ $3–7 total.
