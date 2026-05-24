@@ -7,27 +7,40 @@ If the code is already on GitHub:
 
 If you're starting fresh:
 - Open PyCharm → **New Project** → choose a location
-- Copy the `dnp_mapper/` folder into that project
+- Copy all project files into that folder
 - Use **VCS → Enable Version Control Integration** → Git, then push to GitHub
 
 ---
 
 ## 2. Set up your project folder structure
 
-Inside your project root, create this layout before running anything:
+Your project root should look like this before running:
 
 ```
-your-project/              ← PyCharm project root
-├── dnp_mapper/            ← the tool (already exists)
-├── syllabi/               ← CREATE THIS — put all .docx files here
-├── cache/                 ← created automatically when you run
-├── DNP_Curricular_Mapping_Template_2026_UPDATED.xlsx  ← copy here
-├── .env                   ← CREATE THIS — see Step 3
-├── DNP_Mapping_Output.xlsx     ← created automatically
-└── DNP_Mapping_Report.md       ← created automatically
+Essentials_Mapping/              ← PyCharm project root
+├── env/                         ← virtual environment (created by PyCharm)
+├── syllabi/                     ← CREATE THIS — put all .docx files here
+├── Temp/                        ← CREATE THIS — report and Excel output go here
+├── cache/                       ← created automatically on first run
+├── utils/
+│   ├── __init__.py
+│   ├── docx_reader.py
+│   └── excel_writer.py
+├── .env                         ← CREATE THIS — see Step 3
+├── .gitignore
+├── config.py
+├── DNP_Curricular_Mapping_Template_2026_UPDATED.xlsx
+├── extract.py
+├── map.py
+├── report.py
+├── run_all.py
+├── skill_prompt.txt
+├── requirements.txt
+├── write.py
+└── README.md
 ```
 
-> The `syllabi/` folder and `.env` file sit at the **project root**, not inside `dnp_mapper/`.
+> `syllabi/`, `Temp/`, and `.env` all sit at the **project root** — same level as the scripts.
 
 ---
 
@@ -42,13 +55,8 @@ ANTHROPIC_API_KEY=your-key-here
 
 Replace `your-key-here` with your actual key from https://console.anthropic.com/
 
-> PyCharm may warn that `.env` is not tracked — that is correct. Add `.env` to your
-> `.gitignore` file so your API key is never committed to GitHub.
-
-Add this line to `.gitignore`:
-```
-.env
-```
+> Your `.env` file is listed in `.gitignore` — it will never be committed to GitHub.
+> Never paste your API key directly into any script file.
 
 ---
 
@@ -57,7 +65,7 @@ Add this line to `.gitignore`:
 - Go to **PyCharm → Settings → Project → Python Interpreter**
 - Click the gear icon → **Add Interpreter → Add Local Interpreter**
 - Choose **Virtualenv** → confirm the location → OK
-- PyCharm will create a `venv/` folder in your project
+- PyCharm will create an `env/` folder in your project
 
 ---
 
@@ -66,90 +74,104 @@ Add this line to `.gitignore`:
 Open PyCharm's built-in **Terminal** (bottom toolbar) and run:
 
 ```bash
-pip install -r dnp_mapper/requirements.txt
+pip install -r requirements.txt
 ```
 
 ---
 
-## 6. Set the working directory
+## 6. Working directory
 
-This is the most important PyCharm setting — the scripts use relative paths,
-so they must run from the **project root**, not from inside `dnp_mapper/`.
-
-- Open **Run → Edit Configurations**
-- Click **+** → **Python**
-- Set **Script path** to your `run_all.py` file
-- Set **Working directory** to your **project root** (the folder containing `syllabi/`)
-- Click OK
-
-Alternatively, just use the Terminal for everything (recommended — simpler):
+All scripts use relative paths and must be run from the **project root**.
+PyCharm's Terminal opens at the project root by default, so just run scripts directly:
 
 ```bash
-# From the PyCharm terminal, which opens at project root by default:
-python dnp_mapper/run_all.py
+python run_all.py
 ```
+
+If using PyCharm's Run Configuration instead of the Terminal:
+- Open **Run → Edit Configurations** → **+** → **Python**
+- Set **Script path** to the script file
+- Set **Working directory** to your project root
+- Click OK
 
 ---
 
 ## 7. Run the pipeline
 
-**Option A — Full pipeline (recommended first run):**
+**Full pipeline — recommended:**
 ```bash
-python dnp_mapper/run_all.py
+python run_all.py
 ```
 
-**Option B — Run individual steps:**
+This runs all four steps in sequence. After the audit report is generated it pauses and asks:
+```
+Ok to proceed with writing to Excel? [Y]es / [N]o:
+```
+Open `Temp/DNP_Mapping_Report.md` and review it before answering.
+- **Y** → writes mappings to the Excel template
+- **N** → stops safely; re-run with `--skip-to write` when ready
+
+**Individual steps:**
 ```bash
-python dnp_mapper/extract.py    # Step 1: extract from .docx files
-python dnp_mapper/map.py        # Step 2: call API, generate JSON
-python dnp_mapper/report.py     # Step 3: generate audit report
-python dnp_mapper/write.py      # Step 4: write to Excel template
+python extract.py    # Step 1: extract text from .docx files → cache/
+python map.py        # Step 2: call API, generate JSON → cache/
+python report.py     # Step 3: generate audit report → Temp/
+python write.py      # Step 4: write mappings to Excel → Temp/
 ```
 
-**Option C — Resume after a crash (skips already-cached courses):**
+**Resume after a crash:**
 ```bash
-python dnp_mapper/run_all.py
-# Just re-run the same command — cached JSON files are skipped automatically
+python run_all.py
+# Already-mapped courses are cached and skipped automatically
 ```
 
-**Option D — Re-process everything from scratch:**
+**Re-process everything from scratch:**
 ```bash
-python dnp_mapper/run_all.py --force
+python run_all.py --force
 ```
 
-**Option E — Resume from a specific step:**
+**Resume from a specific step:**
 ```bash
-python dnp_mapper/run_all.py --skip-to report   # runs report + write only
-python dnp_mapper/run_all.py --skip-to write    # runs write only
+python run_all.py --skip-to map      # skips extract only
+python run_all.py --skip-to report   # skips extract + map
+python run_all.py --skip-to write    # runs write only, no confirmation prompt
 ```
 
 ---
 
 ## 8. Check your outputs
 
-After a successful run:
-
 | File | What to do with it |
 |------|--------------------|
-| `cache/*.txt` | Spot-check a few to confirm extraction quality |
-| `cache/*.json` | Review any flagged entries before writing to Excel |
-| `DNP_Mapping_Report.md` | Open in PyCharm or any Markdown viewer — review all ⚑ flagged items and unmapped CLOs |
-| `DNP_Mapping_Output.xlsx` | Your populated template — amber cells need faculty review; Course Objectives/Content (I/R/D) column is blank for faculty to complete |
+| `cache/*.txt` | Spot-check a few to confirm extraction quality — look for AACN IDs |
+| `cache/*.json` | AI-generated mapping per course — source of truth before write |
+| `Temp/DNP_Mapping_Report.md` | **Review this before proceeding to Excel** — check ⚑ flagged entries and unmapped CLOs |
+| `Temp/DNP_Mapping_Output.xlsx` | Populated template — X in both columns per mapping; amber = needs faculty review |
+
+> **I/R/D codes are not populated by this tool.** That designation requires knowledge of
+> the full curriculum sequence and is completed by faculty during curriculum review.
 
 ---
 
 ## Troubleshooting
 
 **"No .docx files found"**
-→ Check that your `syllabi/` folder is in the project root (same level as `dnp_mapper/`),
-  and that you're running from the project root as your working directory.
+→ Confirm `syllabi/` exists at the project root and contains .docx files.
 
 **"ANTHROPIC_API_KEY environment variable not set"**
-→ Check that your `.env` file exists at the project root and contains the key with no
-  extra spaces or quotes around the value.
+→ Check your `.env` file exists at the project root with `ANTHROPIC_API_KEY=your-key-here`.
+  No quotes, no extra spaces around the value.
 
 **"Template not found"**
-→ Confirm `DNP_Curricular_Mapping_Template_2026_UPDATED.xlsx` is in the project root.
+→ Confirm `DNP_Curricular_Mapping_Template_2026_UPDATED.xlsx` is at the project root
+  and the filename in `config.py` matches exactly.
 
-**Crashed mid-run at course 40**
-→ Just re-run `python dnp_mapper/run_all.py` — the first 39 courses are cached and skipped.
+**"No module named utils"**
+→ Confirm the `utils/` folder exists at the project root and contains `__init__.py`.
+
+**AACN IDs not detected in extraction report**
+→ Open the corresponding `cache/*.txt` file — check whether the alignment table was
+  captured. The syllabus may use unexpected headings.
+
+**Crashed mid-run**
+→ Just re-run `python run_all.py` — completed courses are cached and skipped.
