@@ -1,17 +1,17 @@
 """
 run_all.py — Orchestrator
-Runs all four steps in sequence:
-    1. extract.py  — .docx → extracted text
-    2. map.py      — text → JSON via Anthropic API
-    3. report.py   — JSON → audit report
-    4. write.py    — JSON → Excel template
+Runs the DNP mapping pipeline in sequence:
+    1. extract.py  — .docx → extracted text (cache/*.txt)
+    2. map.py      — text  → JSON via Anthropic API (cache/*.json)
+    3. report.py   — JSON  → audit report (DNP_Mapping_Report.md)
+    ── PAUSE: review report, confirm before writing to Excel ──
+    4. write.py    — JSON  → Excel template (DNP_Mapping_Output.xlsx)
 
 Usage:
     python run_all.py [--syllabus-dir PATH] [--template PATH] [--output PATH] [--force]
-
-Flags:
-    --force     Re-process syllabi that already have cached JSON (re-calls the API)
-    --skip-to   Start from a specific step: extract | map | report | write
+    python run_all.py --skip-to map      # resume from step 2
+    python run_all.py --skip-to report   # resume from step 3
+    python run_all.py --skip-to write    # skip to Excel write only (no prompt)
 """
 
 import argparse
@@ -42,14 +42,31 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--template",     type=Path, default=config.TEMPLATE_PATH)
     p.add_argument("--output",       type=Path, default=config.OUTPUT_PATH)
     p.add_argument("--report",       type=Path, default=config.REPORT_PATH)
-    p.add_argument("--force",        action="store_true")
-    p.add_argument(
-        "--skip-to",
-        choices=STEPS,
-        default="extract",
-        help="Resume from a specific step (skips earlier steps)",
-    )
+    p.add_argument("--force",        action="store_true",
+                   help="Re-process syllabi that already have cached JSON")
+    p.add_argument("--skip-to",      choices=STEPS, default="extract",
+                   help="Resume from a specific step")
     return p.parse_args()
+
+
+def confirm_proceed(report_path: Path) -> bool:
+    """Pause and ask the user to review the report before writing to Excel."""
+    print()
+    print("=" * 60)
+    print("  AUDIT REPORT READY")
+    print("=" * 60)
+    print(f"\n  Report saved to: {report_path}")
+    print("  Open it now to review mappings, flagged entries,")
+    print("  and unmapped CLOs before writing to the Excel template.")
+    print()
+
+    while True:
+        answer = input("  Ok to proceed with writing to Excel? [Y]es / [N]o: ").strip().lower()
+        if answer in ("y", "yes"):
+            return True
+        if answer in ("n", "no"):
+            return False
+        print("  Please enter Y or N.")
 
 
 def main() -> None:
@@ -78,9 +95,15 @@ def main() -> None:
         log.info("── Step 3: Report ───────────────────────────────────────")
         report.run(args.cache_dir, args.report)
 
-    if start_index <= STEPS.index("write"):
-        log.info("── Step 4: Write to Excel ───────────────────────────────")
-        write.run(args.cache_dir, args.template, args.output)
+    # ── Pause for review — skip only if jumping straight to write ────────────
+    if start_index < STEPS.index("write"):
+        if not confirm_proceed(args.report):
+            log.info("Write step cancelled. Review the report and re-run with")
+            log.info("  --skip-to write  when ready to proceed.")
+            sys.exit(0)
+
+    log.info("── Step 4: Write to Excel ───────────────────────────────")
+    write.run(args.cache_dir, args.template, args.output)
 
     log.info("=" * 60)
     log.info("Pipeline complete.")

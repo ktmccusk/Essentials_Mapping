@@ -2,12 +2,12 @@
 utils/excel_writer.py
 Writes AI-generated mapping JSON into the DNP curricular mapping Excel template.
 
-Populates:
-  - Course Objectives/Content column : "X" (mapping confirmed; faculty assign I/R/D separately)
-  - Student Evaluation/Grading column: eval codes from the AI (e.g. "EX, CS")
+For each confirmed mapping, writes X in both:
+  - Course Objectives/Content column  (col N)
+  - Student Evaluation/Grading column (col N+1)
 
-I/R/D (Introduce/Reinforce/Demonstrate) is a curriculum-level judgment that requires
-knowledge of the full course sequence. It is intentionally left blank for faculty review.
+Flagged (uncertain) mappings write X in amber in both columns.
+Faculty complete the I/R/D code and evaluation details during curriculum review.
 """
 
 from __future__ import annotations
@@ -21,14 +21,12 @@ from openpyxl.utils import get_column_letter
 
 log = logging.getLogger(__name__)
 
-# ── Cell styles ──────────────────────────────────────────────────────────────
+# ── Styles ───────────────────────────────────────────────────────────────────
 _HEADER_FILL = PatternFill("solid", fgColor="1F4E79")
-_MAP_FILL    = PatternFill("solid", fgColor="D9E1F2")   # confirmed mapping
-_EVAL_FILL   = PatternFill("solid", fgColor="E2EFDA")   # eval codes
+_X_FILL      = PatternFill("solid", fgColor="D9E1F2")   # confirmed mapping
 _FLAG_FILL   = PatternFill("solid", fgColor="FFE699")   # flagged for review
 _HEADER_FONT = Font(bold=True, color="FFFFFF", size=9)
-_BOLD_FONT   = Font(bold=True, size=10)
-_DATA_FONT   = Font(size=9)
+_X_FONT      = Font(bold=True, size=10)
 _CENTER      = Alignment(horizontal="center", vertical="center", wrap_text=True)
 _THIN        = Border(
     left=Side(style="thin"), right=Side(style="thin"),
@@ -68,8 +66,8 @@ def _sheet_for(subcomp_id: str, framework: str) -> Optional[str]:
 def _find_or_create_col(ws, course_name: str) -> int:
     """
     Return the odd column (≥5) for this course in row 3.
+    Course names sit in merged pairs: E3:F3, G3:H3, etc.
     Creates the column header if the slot is empty.
-    Course name pairs live in merged cells: E3:F3, G3:H3, etc.
     """
     col = 5
     while True:
@@ -82,7 +80,7 @@ def _find_or_create_col(ws, course_name: str) -> int:
             cell.font      = _HEADER_FONT
             cell.fill      = _HEADER_FILL
             cell.alignment = _CENTER
-            ws.column_dimensions[get_column_letter(col)].width     = 16
+            ws.column_dimensions[get_column_letter(col)].width     = 14
             ws.column_dimensions[get_column_letter(col + 1)].width = 14
             return col
         col += 2
@@ -94,10 +92,7 @@ def write_courses(
     mappings:      list[dict],
     subcomp_index: Optional[dict] = None,
 ) -> list[str]:
-    """
-    Write a list of course mapping dicts into the template and save to output_path.
-    Returns a list of warning strings.
-    """
+    """Write course mapping dicts into the template. Returns warning strings."""
     wb = load_workbook(str(template_path))
     if subcomp_index is None:
         subcomp_index = build_subcomp_index(wb)
@@ -126,10 +121,10 @@ def _write_entry(
     display_name:  str,
 ) -> list[str]:
     warnings: list[str] = []
-    sid       = entry.get("subcomp_id", "").strip()
-    framework = entry.get("framework", "AACN")
-    eval_str  = ", ".join(entry.get("eval_codes", []))
-    flagged   = entry.get("flag") == "verify"
+    sid      = entry.get("subcomp_id", "").strip()
+    framework= entry.get("framework", "AACN")
+    flagged  = entry.get("flag") == "verify"
+    fill     = _FLAG_FILL if flagged else _X_FILL
 
     sheet_name = _sheet_for(sid, framework)
     if not sheet_name or sheet_name not in wb.sheetnames:
@@ -153,20 +148,13 @@ def _write_entry(
         col_cache[sheet_name] = _find_or_create_col(ws, display_name)
     col = col_cache[sheet_name]
 
-    # Course Objectives/Content column — "X" marks the mapping; faculty add I/R/D later
-    c1 = ws.cell(row=row_num, column=col)
-    c1.value     = "X"
-    c1.font      = _BOLD_FONT
-    c1.alignment = _CENTER
-    c1.fill      = _FLAG_FILL if flagged else _MAP_FILL
-    c1.border    = _THIN
-
-    # Student Evaluation/Grading column — eval codes from the AI
-    c2 = ws.cell(row=row_num, column=col + 1)
-    c2.value     = eval_str
-    c2.font      = _DATA_FONT
-    c2.alignment = _CENTER
-    c2.fill      = _FLAG_FILL if flagged else _EVAL_FILL
-    c2.border    = _THIN
+    # Write X in both Course Objectives/Content AND Student Evaluation/Grading
+    for c in (col, col + 1):
+        cell           = ws.cell(row=row_num, column=c)
+        cell.value     = "X"
+        cell.font      = _X_FONT
+        cell.alignment = _CENTER
+        cell.fill      = fill
+        cell.border    = _THIN
 
     return warnings
