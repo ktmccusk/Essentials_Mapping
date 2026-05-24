@@ -1,0 +1,17 @@
+# created by virtualenv automatically
+*# API key — never commit this
+.env
+
+# Python
+__pycache__/
+*.pyc
+venv/
+.venv/
+
+# Cache — large intermediate files, optional to commit
+cache/
+
+# Outputs — regenerated on each run
+DNP_Mapping_Output.xlsx
+DNP_Mapping_Report.md
+
