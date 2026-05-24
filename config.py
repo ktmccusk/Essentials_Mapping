@@ -9,8 +9,8 @@ from pathlib import Path
 SYLLABUS_DIR  = Path("syllabi")
 CACHE_DIR     = Path("cache")
 TEMPLATE_PATH = Path("DNP_Curricular_Mapping_Template_2026_UPDATED.xlsx")
-OUTPUT_PATH   = Path("DNP_Mapping_Output.xlsx")
-REPORT_PATH   = Path("DNP_Mapping_Report.md")
+OUTPUT_PATH   = Path("Temp/DNP_Mapping_Output.xlsx")
+REPORT_PATH   = Path("Temp/DNP_Mapping_Report.md")
 SKILL_PROMPT  = Path(__file__).parent / "skill_prompt.txt"
 
 # ── Anthropic API ────────────────────────────────────────────────────────────
