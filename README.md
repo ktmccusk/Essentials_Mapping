@@ -99,6 +99,30 @@ python run_all.py --skip-to write    # runs write only
 | `DNP_Mapping_Output.xlsx` | Populated mapping template |
 | `DNP_Mapping_Report.md` | Audit report — review before finalizing |
 
+## Framework Structure
+
+Both frameworks use a two-level hierarchy in the mapping template. This tool maps to the
+**subcompetency** level only — the more specific level that includes a letter suffix.
+
+| Framework | Level NOT mapped | Level mapped (letter suffix required) |
+|-----------|-----------------|---------------------------------------|
+| AACN 2026 | Competency e.g. `1.3` | Subcompetency e.g. `1.3d` |
+| NONPF     | Role Competency e.g. `NP 2.3` | Subcompetency e.g. `NP 2.3i` |
+
+In the Excel template, NONPF sheets label column 2 as **"Role Competency"** rather than
+"Competency Name" — but the mapping target is always column 3 (Subcomp #) in both frameworks.
+
+## What This Tool Does and Does Not Do
+
+**Does:** Identify which AACN 2026 and NONPF subcompetencies each course explicitly addresses,
+and record the assessment methods (eval codes) associated with each mapping. Confirmed mappings
+appear as **X** in the Course Objectives/Content column; flagged uncertain mappings appear in amber.
+
+**Does not:** Assign I/R/D (Introduce/Reinforce/Demonstrate) faculty codes. That designation
+requires knowledge of the full curriculum sequence — where a course sits relative to others,
+what content comes before and after — and is a faculty judgment that belongs in a separate
+curriculum review process. The Course Objectives/Content column is left blank for faculty to complete.
+
 ## Reviewing the Output
 
 **Before accepting the Excel output as final:**

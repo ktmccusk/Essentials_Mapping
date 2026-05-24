@@ -48,26 +48,30 @@ def build_report(json_files: list[Path]) -> str:
     lines: list[str] = []
     lines.append("# DNP Curricular Mapping — Audit Report\n")
     lines.append(f"**Courses processed:** {len(json_files)}\n")
+    lines.append(
+        "> **Note:** The Course Objectives/Content column (I/R/D faculty code) is left blank "
+        "intentionally. Introduce/Reinforce/Demonstrate designations require full curriculum "
+        "sequence context and should be assigned by faculty during curriculum review.\n"
+    )
 
-    # Aggregate stats
-    total_mappings  = 0
-    total_flagged   = 0
-    total_unmapped  = 0
+    total_mappings = 0
+    total_flagged  = 0
+    total_unmapped = 0
     domain_counts: defaultdict[str, int] = defaultdict(int)
-    flagged_entries: list[dict]  = []
+    flagged_entries:  list[dict] = []
     unmapped_entries: list[dict] = []
     course_summaries: list[dict] = []
 
     for jf in sorted(json_files):
-        data = json.loads(jf.read_text(encoding="utf-8"))
+        data       = json.loads(jf.read_text(encoding="utf-8"))
         course     = data.get("course_name", jf.stem)
         course_num = data.get("course_number", "")
         track      = data.get("track", "")
         mappings   = data.get("mappings", [])
         unmapped   = data.get("unmapped_clos", [])
         notes      = data.get("notes", "")
+        flagged    = [m for m in mappings if m.get("flag") == "verify"]
 
-        flagged = [m for m in mappings if m.get("flag") == "verify"]
         total_mappings += len(mappings)
         total_flagged  += len(flagged)
         total_unmapped += len(unmapped)
@@ -77,8 +81,8 @@ def build_report(json_files: list[Path]) -> str:
 
         for m in flagged:
             flagged_entries.append({
-                "course": f"{course_num} {course}".strip(),
-                "subcomp": m["subcomp_id"],
+                "course":    f"{course_num} {course}".strip(),
+                "subcomp":   m["subcomp_id"],
                 "rationale": m.get("rationale", ""),
             })
 
@@ -90,20 +94,20 @@ def build_report(json_files: list[Path]) -> str:
             })
 
         course_summaries.append({
-            "display":   f"{course_num} {course}".strip(),
-            "track":     track,
-            "mapped":    len(mappings),
-            "flagged":   len(flagged),
-            "unmapped":  len(unmapped),
-            "notes":     notes,
+            "display":  f"{course_num} {course}".strip(),
+            "track":    track,
+            "mapped":   len(mappings),
+            "flagged":  len(flagged),
+            "unmapped": len(unmapped),
+            "notes":    notes,
         })
 
-    # ── Summary table ────────────────────────────────────────────────────────
+    # ── Summary ──────────────────────────────────────────────────────────────
     lines.append("## Summary\n")
-    lines.append(f"| Metric | Count |")
-    lines.append(f"|--------|-------|")
-    lines.append(f"| Total subcompetency entries | {total_mappings} |")
-    lines.append(f"| Flagged for review (⚑)      | {total_flagged} |")
+    lines.append("| Metric | Count |")
+    lines.append("|--------|-------|")
+    lines.append(f"| Total subcompetency mappings | {total_mappings} |")
+    lines.append(f"| Flagged for faculty review ⚑ | {total_flagged} |")
     lines.append(f"| Unmapped CLOs               | {total_unmapped} |")
     lines.append("")
 
@@ -119,7 +123,7 @@ def build_report(json_files: list[Path]) -> str:
     lines.append("")
 
     # ── Domain coverage ──────────────────────────────────────────────────────
-    lines.append("## Domain Coverage (total entries per domain)\n")
+    lines.append("## Domain Coverage (total mapping entries per domain)\n")
     lines.append("| Domain | Entries |")
     lines.append("|--------|---------|")
     for domain in sorted(domain_counts):
@@ -129,7 +133,10 @@ def build_report(json_files: list[Path]) -> str:
     # ── Flagged entries ──────────────────────────────────────────────────────
     if flagged_entries:
         lines.append("## ⚑ Flagged Entries — Require Faculty Review\n")
-        lines.append("These mappings were marked uncertain by the AI and should be verified.\n")
+        lines.append(
+            "These mappings were marked uncertain by the AI. "
+            "Faculty should verify before finalizing.\n"
+        )
         for fe in flagged_entries:
             lines.append(f"**{fe['course']}** — `{fe['subcomp']}`")
             lines.append(f"> {fe['rationale']}\n")
@@ -139,7 +146,10 @@ def build_report(json_files: list[Path]) -> str:
     # ── Unmapped CLOs ─────────────────────────────────────────────────────────
     if unmapped_entries:
         lines.append("## Unmapped CLOs\n")
-        lines.append("These course-level outcomes could not be matched to any subcompetency.\n")
+        lines.append(
+            "These course-level outcomes could not be matched to any subcompetency. "
+            "Faculty should review.\n"
+        )
         for ue in unmapped_entries:
             lines.append(f"**{ue['course']}**")
             lines.append(f"- CLO: _{ue['clo']}_")
@@ -147,7 +157,7 @@ def build_report(json_files: list[Path]) -> str:
     else:
         lines.append("## Unmapped CLOs\n_None — all CLOs were mapped._\n")
 
-    # ── Course notes ─────────────────────────────────────────────────────────
+    # ── Course notes ──────────────────────────────────────────────────────────
     notes_exist = [cs for cs in course_summaries if cs["notes"]]
     if notes_exist:
         lines.append("## AI Notes by Course\n")
@@ -168,12 +178,11 @@ def run(cache_dir: Path, output: Path) -> None:
     output.write_text(report_text, encoding="utf-8")
     log.info("Report saved: %s", output)
 
-    # Also print a console summary
     print(f"\n{'='*60}")
-    print(f"  AUDIT REPORT SUMMARY")
+    print("  AUDIT REPORT SUMMARY")
     print(f"{'='*60}")
     for line in report_text.split("\n"):
-        if line.startswith(("## ", "| ", "**")):
+        if line.startswith(("## ", "| ", "**", "> **Note")):
             print(line)
     print(f"\nFull report: {output}\n")
 

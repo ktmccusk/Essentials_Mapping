@@ -1,6 +1,13 @@
 """
 utils/excel_writer.py
 Writes AI-generated mapping JSON into the DNP curricular mapping Excel template.
+
+Populates:
+  - Course Objectives/Content column : "X" (mapping confirmed; faculty assign I/R/D separately)
+  - Student Evaluation/Grading column: eval codes from the AI (e.g. "EX, CS")
+
+I/R/D (Introduce/Reinforce/Demonstrate) is a curriculum-level judgment that requires
+knowledge of the full course sequence. It is intentionally left blank for faculty review.
 """
 
 from __future__ import annotations
@@ -16,9 +23,9 @@ log = logging.getLogger(__name__)
 
 # ── Cell styles ──────────────────────────────────────────────────────────────
 _HEADER_FILL = PatternFill("solid", fgColor="1F4E79")
-_IRD_FILL    = PatternFill("solid", fgColor="D9E1F2")
-_EVAL_FILL   = PatternFill("solid", fgColor="E2EFDA")
-_FLAG_FILL   = PatternFill("solid", fgColor="FFE699")
+_MAP_FILL    = PatternFill("solid", fgColor="D9E1F2")   # confirmed mapping
+_EVAL_FILL   = PatternFill("solid", fgColor="E2EFDA")   # eval codes
+_FLAG_FILL   = PatternFill("solid", fgColor="FFE699")   # flagged for review
 _HEADER_FONT = Font(bold=True, color="FFFFFF", size=9)
 _BOLD_FONT   = Font(bold=True, size=10)
 _DATA_FONT   = Font(size=9)
@@ -60,8 +67,9 @@ def _sheet_for(subcomp_id: str, framework: str) -> Optional[str]:
 
 def _find_or_create_col(ws, course_name: str) -> int:
     """
-    Return the odd column (≥5) where this course's data lives in row 3.
+    Return the odd column (≥5) for this course in row 3.
     Creates the column header if the slot is empty.
+    Course name pairs live in merged cells: E3:F3, G3:H3, etc.
     """
     col = 5
     while True:
@@ -95,7 +103,6 @@ def write_courses(
         subcomp_index = build_subcomp_index(wb)
 
     all_warnings: list[str] = []
-
     for course_map in mappings:
         course_name = course_map.get("course_name", "Unknown")
         course_num  = course_map.get("course_number", "")
@@ -119,11 +126,10 @@ def _write_entry(
     display_name:  str,
 ) -> list[str]:
     warnings: list[str] = []
-    sid      = entry.get("subcomp_id", "").strip()
-    framework= entry.get("framework", "AACN")
-    ird      = entry.get("ird_code", "")
-    eval_str = ", ".join(entry.get("eval_codes", []))
-    flagged  = entry.get("flag") == "verify"
+    sid       = entry.get("subcomp_id", "").strip()
+    framework = entry.get("framework", "AACN")
+    eval_str  = ", ".join(entry.get("eval_codes", []))
+    flagged   = entry.get("flag") == "verify"
 
     sheet_name = _sheet_for(sid, framework)
     if not sheet_name or sheet_name not in wb.sheetnames:
@@ -134,7 +140,6 @@ def _write_entry(
 
     row_num = subcomp_index.get((sheet_name, sid))
     if not row_num:
-        # Tolerate trailing whitespace variants in the template
         row_num = next(
             (r for (s, k), r in subcomp_index.items()
              if s == sheet_name and k.strip() == sid),
@@ -148,14 +153,20 @@ def _write_entry(
         col_cache[sheet_name] = _find_or_create_col(ws, display_name)
     col = col_cache[sheet_name]
 
-    fill = _FLAG_FILL if flagged else _IRD_FILL
+    # Course Objectives/Content column — "X" marks the mapping; faculty add I/R/D later
     c1 = ws.cell(row=row_num, column=col)
-    c1.value = ird; c1.font = _BOLD_FONT; c1.alignment = _CENTER
-    c1.fill  = fill; c1.border = _THIN
+    c1.value     = "X"
+    c1.font      = _BOLD_FONT
+    c1.alignment = _CENTER
+    c1.fill      = _FLAG_FILL if flagged else _MAP_FILL
+    c1.border    = _THIN
 
-    fill = _FLAG_FILL if flagged else _EVAL_FILL
+    # Student Evaluation/Grading column — eval codes from the AI
     c2 = ws.cell(row=row_num, column=col + 1)
-    c2.value = eval_str; c2.font = _DATA_FONT; c2.alignment = _CENTER
-    c2.fill  = fill; c2.border = _THIN
+    c2.value     = eval_str
+    c2.font      = _DATA_FONT
+    c2.alignment = _CENTER
+    c2.fill      = _FLAG_FILL if flagged else _EVAL_FILL
+    c2.border    = _THIN
 
     return warnings
